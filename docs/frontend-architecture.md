@@ -1,6 +1,6 @@
 # 🏗️ Frontend Architecture - Baitul Jannah Super App
 
-> **Tech Stack:** Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v4 + Shadcn/UI
+> **Tech Stack:** Laravel 12 + Inertia.js + React 19 + TypeScript + Tailwind CSS v4 + Shadcn/UI
 
 ---
 
@@ -10,7 +10,7 @@
 ┌─────────────────────────────────────────────────────┐
 │                    Browser                          │
 ├─────────────────────────────────────────────────────┤
-│  React 18 + TypeScript + Tailwind CSS + Shadcn/UI   │
+│  React 19 + TypeScript + Tailwind CSS + Shadcn/UI   │
 │  ├── Pages/           # Inertia Pages               │
 │  ├── Components/      # UI Components               │
 │  ├── hooks/           # Custom React Hooks          │

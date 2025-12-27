@@ -33,12 +33,8 @@ export function useIsDark(): boolean {
         if (theme === 'dark') return true;
         if (theme === 'light') return false;
 
-        // Untuk 'system', check document class first (sudah di-set oleh ThemeProvider)
-        if (typeof document !== 'undefined') {
-            return document.documentElement.classList.contains('dark');
-        }
-
-        // Fallback ke system preference
+        // Untuk 'system', langsung cek system preference (bukan DOM class)
+        // Ini menghindari race condition dimana DOM class belum ter-update
         if (typeof window !== 'undefined') {
             return window.matchMedia('(prefers-color-scheme: dark)').matches;
         }
