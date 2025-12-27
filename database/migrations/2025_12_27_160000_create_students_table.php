@@ -12,21 +12,39 @@ return new class extends Migration {
     {
         Schema::create('students', function (Blueprint $table) {
             $table->id();
+
+            // NIS Format: TPQA250012 (TPQ Pagi), TPQB250012 (TPQ Sore), TAUD250012 (TAUD)
             $table->string('nis', 20)->unique()->comment('Nomor Induk Santri');
             $table->string('name', 100);
+            $table->string('nickname', 50)->nullable()->comment('Nama panggilan');
+
+            // Program: tpq atau taud
             $table->enum('type', ['tpq', 'taud'])->comment('Jenis: TPQ atau TAUD');
+
+            // Waktu Kelas: pagi atau sore (TAUD hanya pagi)
+            $table->enum('class_time', ['pagi', 'sore'])->default('pagi')
+                ->comment('Waktu kelas: pagi (TPQA/TAUD) atau sore (TPQB)');
+
             $table->enum('gender', ['L', 'P'])->default('L');
             $table->date('birth_date')->nullable();
             $table->string('birth_place', 100)->nullable();
             $table->text('address')->nullable();
 
-            // Parent info
-            $table->string('parent_name', 100)->nullable();
-            $table->string('parent_phone', 20)->nullable();
+            // Data Ayah (Father)
+            $table->string('father_name', 100)->nullable();
+            $table->string('father_occupation', 100)->nullable()->comment('Pekerjaan Ayah');
+            $table->string('father_phone', 20)->nullable()->comment('No HP Ayah');
+            $table->string('father_wa', 20)->nullable()->comment('No WA Ayah (jika berbeda)');
 
-            // Academic info
-            $table->string('academic_year', 9)->comment('Tahun ajaran masuk, format: 2025/2026');
-            $table->date('entry_date')->nullable()->comment('Tanggal masuk');
+            // Data Ibu (Mother)
+            $table->string('mother_name', 100)->nullable();
+            $table->string('mother_occupation', 100)->nullable()->comment('Pekerjaan Ibu');
+            $table->string('mother_phone', 20)->nullable()->comment('No HP Ibu');
+            $table->string('mother_wa', 20)->nullable()->comment('No WA Ibu (jika berbeda)');
+
+            // Registration & Entry info
+            $table->date('registration_date')->nullable()->comment('Tanggal daftar');
+            $table->year('entry_year')->comment('Tahun masuk belajar (YY), untuk generate NIS');
 
             // Payment info
             $table->decimal('monthly_fee', 12, 2)->default(0)->comment('Iuran/SPP bulanan');
@@ -35,8 +53,9 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->index('type');
+            $table->index('class_time');
             $table->index('is_active');
-            $table->index('academic_year');
+            $table->index('entry_year');
         });
     }
 

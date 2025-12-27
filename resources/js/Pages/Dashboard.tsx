@@ -19,6 +19,7 @@ export default function Dashboard() {
 
     const navigation = [
         { name: 'Dashboard', href: route('dashboard'), icon: LayoutDashboard, current: true },
+        { name: 'Santri', href: route('students.index'), icon: Users, current: false },
         { name: 'Buku Kas', href: route('finance.transactions.index'), icon: FileText, current: false },
     ];
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\StudentController;
 use App\Http\Controllers\Web\Finance\TransactionController;
 use App\Http\Controllers\Web\Finance\TransactionCategoryController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
+    // Students (Santri TPQ & TAUD)
+    Route::resource('students', StudentController::class);
 
     // Finance Module
     Route::prefix('finance')->name('finance.')->group(function () {
