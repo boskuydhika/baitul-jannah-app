@@ -1,7 +1,8 @@
 <?php
 
 use App\Http\Controllers\Web\AuthController;
-use App\Http\Controllers\Web\Finance\AccountController;
+use App\Http\Controllers\Web\Finance\TransactionController;
+use App\Http\Controllers\Web\Finance\TransactionCategoryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -25,11 +26,21 @@ Route::middleware('auth')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/', function () {
-        return Inertia::render('Dashboard'); // Placeholder Dashboard
+        return Inertia::render('Dashboard');
     })->name('dashboard');
 
     // Finance Module
     Route::prefix('finance')->name('finance.')->group(function () {
-        Route::get('accounts', [AccountController::class, 'index'])->name('accounts.index');
+        // Transaction Categories (CRUD) - Super Admin & Finance only
+        Route::resource('categories', TransactionCategoryController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
+
+        // Transactions (Buku Kas)
+        Route::resource('transactions', TransactionController::class)
+            ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+        Route::post('transactions/{transaction}/post', [TransactionController::class, 'post'])
+            ->name('transactions.post');
+        Route::post('transactions/{transaction}/unpost', [TransactionController::class, 'unpost'])
+            ->name('transactions.unpost');
     });
 });

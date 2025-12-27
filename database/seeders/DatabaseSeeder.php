@@ -10,6 +10,8 @@ use Illuminate\Database\Seeder;
  * Urutan seeding:
  * 1. RoleSeeder - Buat roles dan permissions
  * 2. AdminSeeder - Buat user admin default
+ * 3. TransactionCategorySeeder - Kategori transaksi
+ * 4. StudentSeeder - Data santri dummy
  */
 class DatabaseSeeder extends Seeder
 {
@@ -21,8 +23,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             AdminSeeder::class,
-            AccountSeeder::class,
-            SampleDataSeeder::class,
+            TransactionCategorySeeder::class,
+            StudentSeeder::class,
         ]);
     }
 }

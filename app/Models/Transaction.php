@@ -6,26 +6,23 @@ use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 
 /**
- * Model Transaction untuk jurnal umum (double-entry bookkeeping).
+ * Model Transaction untuk buku kas sederhana.
  * 
- * Setiap transaksi HARUS balance: Total Debit = Total Credit
+ * Setiap transaksi adalah satu entri: pemasukan ATAU pengeluaran.
+ * Tidak menggunakan double-entry bookkeeping.
  * 
  * @property int $id
  * @property string $transaction_number
- * @property \Carbon\Carbon $transaction_date
- * @property string $type
- * @property string|null $reference_type
- * @property int|null $reference_id
+ * @property \Carbon\Carbon $transaction_datetime
+ * @property int|null $category_id
+ * @property string $type (income|expense)
  * @property string $description
  * @property float $amount
+ * @property string $status (draft|posted)
  * @property int|null $created_by
- * @property string $status
  */
 class Transaction extends Model
 {
@@ -33,50 +30,39 @@ class Transaction extends Model
 
     protected $fillable = [
         'transaction_number',
-        'transaction_date',
+        'transaction_datetime',
+        'category_id',
         'type',
-        'reference_type',
-        'reference_id',
         'description',
         'amount',
-        'created_by',
         'status',
-        'posted_at',
-        'posted_by',
-        'voided_at',
-        'voided_by',
-        'void_reason',
+        'created_by',
     ];
 
     protected $casts = [
-        'transaction_date' => 'date',
+        'transaction_datetime' => 'datetime',
         'amount' => 'decimal:2',
-        'posted_at' => 'datetime',
-        'voided_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'formatted_amount',
+        'formatted_datetime',
+        'status_label',
+        'type_label',
     ];
 
     // =========================================================================
     // RELATIONSHIPS
     // =========================================================================
 
-    public function details(): HasMany
+    public function category(): BelongsTo
     {
-        return $this->hasMany(TransactionDetail::class)->orderBy('line_order');
-    }
-
-    public function reference(): MorphTo
-    {
-        return $this->morphTo();
+        return $this->belongsTo(TransactionCategory::class, 'category_id');
     }
 
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function poster(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'posted_by');
     }
 
     // =========================================================================
@@ -93,14 +79,24 @@ class Transaction extends Model
         return $query->where('status', 'draft');
     }
 
-    public function scopeOfType($query, string $type)
+    public function scopeIncome($query)
     {
-        return $query->where('type', $type);
+        return $query->where('type', 'income');
+    }
+
+    public function scopeExpense($query)
+    {
+        return $query->where('type', 'expense');
+    }
+
+    public function scopeOfCategory($query, int $categoryId)
+    {
+        return $query->where('category_id', $categoryId);
     }
 
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
-        return $query->whereBetween('transaction_date', [$startDate, $endDate]);
+        return $query->whereBetween('transaction_datetime', [$startDate, $endDate]);
     }
 
     // =========================================================================
@@ -112,19 +108,16 @@ class Transaction extends Model
         return 'Rp ' . number_format($this->amount, 0, ',', '.');
     }
 
-    public function getTotalDebitAttribute(): float
+    public function getFormattedDatetimeAttribute(): string
     {
-        return $this->details->sum('debit');
-    }
+        if (!$this->transaction_datetime)
+            return '-';
 
-    public function getTotalCreditAttribute(): float
-    {
-        return $this->details->sum('credit');
-    }
+        $days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $dt = $this->transaction_datetime;
+        $dayName = $days[$dt->dayOfWeek];
 
-    public function getIsBalancedAttribute(): bool
-    {
-        return abs($this->total_debit - $this->total_credit) < 0.01;
+        return $dayName . ', ' . $dt->format('Y-m-d H:i:s');
     }
 
     public function getStatusLabelAttribute(): string
@@ -132,7 +125,6 @@ class Transaction extends Model
         return match ($this->status) {
             'draft' => 'Draft',
             'posted' => 'Posted',
-            'void' => 'Dibatalkan',
             default => $this->status,
         };
     }
@@ -142,13 +134,30 @@ class Transaction extends Model
         return match ($this->status) {
             'draft' => 'yellow',
             'posted' => 'green',
-            'void' => 'red',
+            default => 'gray',
+        };
+    }
+
+    public function getTypeLabelAttribute(): string
+    {
+        return match ($this->type) {
+            'income' => 'Pemasukan',
+            'expense' => 'Pengeluaran',
+            default => $this->type,
+        };
+    }
+
+    public function getTypeColorAttribute(): string
+    {
+        return match ($this->type) {
+            'income' => 'green',
+            'expense' => 'red',
             default => 'gray',
         };
     }
 
     // =========================================================================
-    // METHODS
+    // STATIC METHODS
     // =========================================================================
 
     /**
@@ -173,7 +182,45 @@ class Transaction extends Model
     }
 
     /**
-     * Posting transaksi (update saldo akun).
+     * Hitung saldo saat ini (total pemasukan - total pengeluaran).
+     */
+    public static function getCurrentBalance(): float
+    {
+        $income = static::posted()->income()->sum('amount');
+        $expense = static::posted()->expense()->sum('amount');
+
+        return $income - $expense;
+    }
+
+    /**
+     * Hitung saldo sampai tanggal tertentu.
+     */
+    public static function getBalanceUntil(\DateTime $date): float
+    {
+        $income = static::posted()->income()
+            ->where('transaction_datetime', '<=', $date)
+            ->sum('amount');
+        $expense = static::posted()->expense()
+            ->where('transaction_datetime', '<=', $date)
+            ->sum('amount');
+
+        return $income - $expense;
+    }
+
+    /**
+     * Jumlah transaksi draft.
+     */
+    public static function getDraftCount(): int
+    {
+        return static::draft()->count();
+    }
+
+    // =========================================================================
+    // METHODS
+    // =========================================================================
+
+    /**
+     * Post transaksi (ubah status dari draft ke posted).
      */
     public function post(): bool
     {
@@ -181,75 +228,21 @@ class Transaction extends Model
             return false;
         }
 
-        if (!$this->is_balanced) {
-            throw new \Exception('Transaksi tidak balance! Debit: ' . $this->total_debit . ', Credit: ' . $this->total_credit);
-        }
-
-        return DB::transaction(function () {
-            // Update saldo setiap akun
-            foreach ($this->details as $detail) {
-                $detail->account->updateBalance($detail->debit, $detail->credit);
-            }
-
-            // Update status
-            $this->status = 'posted';
-            $this->posted_at = now();
-            $this->posted_by = auth()->id();
-            $this->save();
-
-            return true;
-        });
+        $this->status = 'posted';
+        return $this->save();
     }
 
     /**
-     * Void/batalkan transaksi (reverse saldo akun).
+     * Unpost transaksi (ubah status dari posted ke draft).
+     * Hanya untuk super admin.
      */
-    public function void(string $reason): bool
+    public function unpost(): bool
     {
         if ($this->status !== 'posted') {
             return false;
         }
 
-        return DB::transaction(function () use ($reason) {
-            // Reverse saldo setiap akun
-            foreach ($this->details as $detail) {
-                // Reverse: debit jadi credit dan sebaliknya
-                $detail->account->updateBalance($detail->credit, $detail->debit);
-            }
-
-            // Update status
-            $this->status = 'void';
-            $this->voided_at = now();
-            $this->voided_by = auth()->id();
-            $this->void_reason = $reason;
-            $this->save();
-
-            return true;
-        });
-    }
-
-    /**
-     * Add detail line ke transaksi.
-     */
-    public function addDetail(int $accountId, float $debit = 0, float $credit = 0, ?string $description = null): TransactionDetail
-    {
-        $lastOrder = $this->details()->max('line_order') ?? 0;
-
-        return $this->details()->create([
-            'account_id' => $accountId,
-            'debit' => $debit,
-            'credit' => $credit,
-            'description' => $description,
-            'line_order' => $lastOrder + 1,
-        ]);
-    }
-
-    /**
-     * Recalculate amount dari details.
-     */
-    public function recalculateAmount(): void
-    {
-        $this->amount = $this->details()->sum('debit');
-        $this->save();
+        $this->status = 'draft';
+        return $this->save();
     }
 }

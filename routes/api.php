@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 | Structure:
 | - /auth/* - Autentikasi (login, logout, me)
 | - /users/* - User Management (RBAC)
-| - /finance/* - Keuangan (COA, Transaksi, Tagihan)
+| - /finance/* - Keuangan (Transaksi, Tagihan)
 | - /academic/* - Akademik (Santri, Kelas, Nilai)
 | - /ppdb/* - Penerimaan Santri Baru
 |
@@ -44,37 +44,22 @@ Route::middleware('auth:sanctum')->group(function () {
     // ------------------------------------------------------------------
     Route::prefix('users')->group(function () {
         // TODO: Implement UserController
-        // Route::apiResource('/', UserController::class);
     });
 
     // ------------------------------------------------------------------
-    // Finance Module (COA, Transactions, Invoices, Payments)
+    // Finance Module (Transactions, Invoices, Payments)
     // ------------------------------------------------------------------
     Route::prefix('finance')->group(function () {
-        // Chart of Accounts
-        Route::get('accounts/next-code', [App\Http\Controllers\Api\Finance\AccountController::class, 'nextCode']);
-        Route::apiResource('accounts', App\Http\Controllers\Api\Finance\AccountController::class);
-
-        // Transactions (Jurnal Umum)
+        // Transactions (Buku Kas)
         Route::post('transactions/{transaction}/post', [App\Http\Controllers\Api\Finance\TransactionController::class, 'post']);
-        Route::post('transactions/{transaction}/void', [App\Http\Controllers\Api\Finance\TransactionController::class, 'void']);
         Route::apiResource('transactions', App\Http\Controllers\Api\Finance\TransactionController::class);
-
-        // Invoices (Tagihan)
-        Route::post('invoices/generate', [App\Http\Controllers\Api\Finance\InvoiceController::class, 'generate']);
-        Route::post('invoices/{invoice}/send', [App\Http\Controllers\Api\Finance\InvoiceController::class, 'send']);
-        Route::apiResource('invoices', App\Http\Controllers\Api\Finance\InvoiceController::class);
-
-        // Payments (Pembayaran)
-        Route::apiResource('payments', App\Http\Controllers\Api\Finance\PaymentController::class)->except(['update']);
     });
 
     // ------------------------------------------------------------------
     // Academic Module (Students, Classes, Records)
     // ------------------------------------------------------------------
     Route::prefix('academic')->group(function () {
-        // Students
-        Route::apiResource('students', App\Http\Controllers\Api\Academic\StudentController::class);
+        // Students - akan diimplementasikan
     });
 
     // ------------------------------------------------------------------

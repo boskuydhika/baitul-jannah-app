@@ -3,7 +3,7 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { ThemeToggle } from '@/Components/theme-toggle';
 import { useIsDark } from '@/hooks/use-is-dark';
-import { Menu, X, LogOut, LayoutDashboard, Wallet, Users, TrendingUp, AlertCircle, ChevronRight } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, Wallet, Users, TrendingUp, AlertCircle, ChevronRight, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ export default function Dashboard() {
 
     const navigation = [
         { name: 'Dashboard', href: route('dashboard'), icon: LayoutDashboard, current: true },
-        { name: 'Keuangan', href: route('finance.accounts.index'), icon: Wallet, current: false },
+        { name: 'Buku Kas', href: route('finance.transactions.index'), icon: FileText, current: false },
     ];
 
     return (
@@ -198,7 +198,7 @@ export default function Dashboard() {
                                 </p>
                                 <Button
                                     className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-                                    onClick={() => router.visit(route('finance.accounts.index'))}
+                                    onClick={() => router.visit(route('finance.transactions.index'))}
                                 >
                                     Lihat Keuangan
                                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -263,7 +263,7 @@ export default function Dashboard() {
                         {/* Quick Actions Mobile */}
                         <div className="grid grid-cols-2 gap-4 md:hidden">
                             <button
-                                onClick={() => router.visit(route('finance.accounts.index'))}
+                                onClick={() => router.visit(route('finance.transactions.index'))}
                                 className={cn(
                                     "flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all",
                                     isDark ? "bg-gray-900/50 border-gray-800 hover:border-indigo-700" : "bg-white border-gray-200 hover:border-indigo-300"
