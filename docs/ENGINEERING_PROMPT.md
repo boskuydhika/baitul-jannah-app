@@ -129,8 +129,7 @@ baitul-jannah-app/
 │   ├── Http/
 │   │   ├── Controllers/
 │   │   │   ├── Api/               # API controllers (untuk mobile/external)
-│   │   │   │   └── V1/
-│   │   │   │       └── AuthController.php
+│   │   │   │   └── AuthController.php
 │   │   │   └── Web/               # Web controllers (Inertia pages)
 │   │   │       ├── Auth/
 │   │   │       │   └── LoginController.php
@@ -209,7 +208,7 @@ baitul-jannah-app/
 │   │   │
 │   │   └── types/                 # TypeScript type definitions
 │   │       └── global.d.ts
-│   │
+│   │_
 │   ├── css/
 │   │   └── app.css                # Global CSS + Tailwind imports
 │   │
@@ -333,7 +332,7 @@ export default function StudentIndex({ students, filters }: Props) {
 │  Login Form │ => │   Laravel   │ => │   Session   │
 │  (phone +   │    │   Auth      │    │   Cookie    │
 │   password) │    │  (Sanctum)  │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘
+└─────────────┘    └─────────────┘    └─────────────┘_
                           │
                           ▼
                ┌────────────────────┐
@@ -409,7 +408,8 @@ CREATE TABLE users (
     is_active BOOLEAN DEFAULT TRUE,
     remember_token VARCHAR(100) NULL,
     created_at TIMESTAMP NULL,
-    updated_at TIMESTAMP NULL
+    updated_at TIMESTAMP NULL,
+    deleted_at TIMESTAMP NULL                -- SoftDeletes
 );
 ```
 
@@ -447,6 +447,7 @@ CREATE TABLE students (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
+    deleted_at TIMESTAMP NULL,               -- SoftDeletes
     
     INDEX idx_type (type),
     INDEX idx_class_time (class_time),
@@ -469,6 +470,7 @@ CREATE TABLE transactions (
     created_by BIGINT UNSIGNED NULL,
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
+    deleted_at TIMESTAMP NULL,               -- SoftDeletes
     
     FOREIGN KEY (category_id) REFERENCES transaction_categories(id),
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
@@ -1109,7 +1111,7 @@ public function getFormattedAmountAttribute(): string
 |-------|--------|--------|
 | List Transactions | ✅ | Paginated dengan filter |
 | Create Transaction | ✅ | Income/Expense |
-| Edit Transaction | ✅ | Hanya status draft |
+| Edit Transaction | ✅ | Draft: semua user. Completed: hanya Super Admin |
 | Show Transaction | ✅ | Detail view |
 | Categories | ✅ | Seeder dengan kategori lengkap |
 | Filter by Date | ✅ | Period filter |
@@ -1117,6 +1119,7 @@ public function getFormattedAmountAttribute(): string
 | Filter by Status | ✅ | Draft/Completed |
 | Running Balance | ✅ | Saldo berjalan |
 | Backdate Toggle | ✅ | Input tanggal lampau |
+| SoftDeletes | ✅ | Hapus tidak permanen |
 
 ### 8.4 Manajemen Santri ✅
 
@@ -1472,6 +1475,334 @@ docs: Update README with quick start guide
 - [ ] Tidak ada console errors
 - [ ] Mobile responsive
 - [ ] CHANGELOG updated
+
+---
+
+## 15. DEPLOYMENT KE SHARED HOSTING
+
+### 15.1 Persiapan Sebelum Deploy
+
+**1. Build Assets Lokal**
+```bash
+# Di komputer lokal
+npm run build
+
+# Hasil build ada di folder public/build/
+```
+
+**2. Optimasi Laravel**
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+**3. Update .env untuk Production**
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://yourdomain.com
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
+```
+
+---
+
+### 15.2 Deployment DENGAN SSH
+
+**Cocok untuk:** VPS, Cloud Hosting, Shared Hosting dengan SSH access
+
+#### Step 1: Upload Files
+
+```bash
+# Via Git (recommended)
+ssh user@yourserver.com
+cd /home/yourusername/public_html
+git clone https://github.com/yourusername/baitul-jannah-app.git .
+
+# Atau via rsync (lebih cepat untuk update)
+rsync -avz --exclude='node_modules' --exclude='.git' --exclude='storage/logs/*' \
+  ./ user@yourserver.com:/home/yourusername/public_html/
+```
+
+#### Step 2: Install Dependencies
+
+```bash
+# Di server
+cd /home/yourusername/public_html
+
+# Install PHP dependencies
+composer install --optimize-autoloader --no-dev
+
+# Jika composer tidak tersedia global
+php composer.phar install --optimize-autoloader --no-dev
+```
+
+#### Step 3: Setup Environment
+
+```bash
+# Copy environment
+cp .env.example .env
+
+# Edit dengan nano/vim
+nano .env
+
+# Generate key
+php artisan key:generate
+```
+
+#### Step 4: Setup Database
+
+```bash
+# Buat database via cPanel atau CLI
+mysql -u root -p -e "CREATE DATABASE baitul_jannah;"
+mysql -u root -p -e "CREATE USER 'bjapp'@'localhost' IDENTIFIED BY 'password123';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON baitul_jannah.* TO 'bjapp'@'localhost';"
+mysql -u root -p -e "FLUSH PRIVILEGES;"
+
+# Jalankan migration
+php artisan migrate --seed
+```
+
+#### Step 5: Set Permissions
+
+```bash
+# Storage dan cache harus writable
+chmod -R 775 storage
+chmod -R 775 bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+```
+
+#### Step 6: Setup Document Root
+
+**Untuk Shared Hosting (public_html):**
+
+Pindahkan isi folder `public` ke `public_html` dan sesuaikan path:
+
+```bash
+# Struktur folder menjadi:
+/home/username/
+├── app/                    # Laravel app (di luar public_html)
+├── bootstrap/
+├── config/
+├── database/
+├── resources/
+├── routes/
+├── storage/
+├── vendor/
+├── .env
+└── public_html/            # Document root (isi dari public/)
+    ├── index.php (MODIFIED)
+    ├── build/
+    ├── .htaccess
+    └── ...
+```
+
+**Edit `public_html/index.php`:**
+```php
+<?php
+// Ubah path ke folder Laravel
+require __DIR__.'/../vendor/autoload.php';
+$app = require_once __DIR__.'/../bootstrap/app.php';
+```
+
+#### Step 7: Create Symlink untuk Storage
+
+```bash
+# Buat symlink storage
+cd /home/username/public_html
+ln -s ../storage/app/public storage
+```
+
+---
+
+### 15.3 Deployment TANPA SSH (cPanel/File Manager)
+
+**Cocok untuk:** Shared Hosting tanpa SSH access
+
+#### Step 1: Persiapan Lokal
+
+```bash
+# Build assets
+npm run build
+
+# Compress untuk upload
+zip -r baitul-jannah-app.zip . \
+  -x "node_modules/*" \
+  -x ".git/*" \
+  -x "storage/logs/*" \
+  -x "storage/framework/cache/*" \
+  -x "storage/framework/sessions/*" \
+  -x "storage/framework/views/*"
+```
+
+#### Step 2: Upload via File Manager
+
+1. Login ke **cPanel**
+2. Buka **File Manager**
+3. Navigate ke folder di luar `public_html` (misal: `/home/username/laravel/`)
+4. Upload `baitul-jannah-app.zip`
+5. **Extract** file zip
+6. Hapus file zip setelah extract
+
+#### Step 3: Copy Public Folder
+
+1. Di File Manager, buka folder hasil extract
+2. Masuk ke folder `public/`
+3. **Select All** files (`index.php`, `.htaccess`, `build/`, dll)
+4. **Copy** ke `/home/username/public_html/`
+
+#### Step 4: Edit index.php
+
+1. Buka `/home/username/public_html/index.php`
+2. **Edit** dengan editor built-in:
+
+```php
+<?php
+
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+// UBAH PATH INI sesuai lokasi Laravel
+require __DIR__.'/../laravel/vendor/autoload.php';
+
+$app = require_once __DIR__.'/../laravel/bootstrap/app.php';
+
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+$response = $kernel->handle(
+    $request = Request::capture()
+)->send();
+
+$kernel->terminate($request, $response);
+```
+
+#### Step 5: Setup .env
+
+1. Buka folder Laravel (`/home/username/laravel/`)
+2. Copy `.env.example` → rename jadi `.env`
+3. Edit `.env` dengan nilai production:
+
+```env
+APP_NAME="Baitul Jannah"
+APP_ENV=production
+APP_KEY=
+APP_DEBUG=false
+APP_URL=https://yourdomain.com
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=cpanelusername_dbname
+DB_USERNAME=cpanelusername_dbuser
+DB_PASSWORD=yourpassword
+```
+
+#### Step 6: Generate App Key (via Web)
+
+Buat file sementara untuk generate key:
+
+1. Buat file `/home/username/public_html/generate-key.php`:
+
+```php
+<?php
+require __DIR__.'/../laravel/vendor/autoload.php';
+$app = require_once __DIR__.'/../laravel/bootstrap/app.php';
+$key = 'base64:'.base64_encode(random_bytes(32));
+echo "Tambahkan ke .env:<br><br>";
+echo "APP_KEY=".$key;
+```
+
+2. Akses via browser: `https://yourdomain.com/generate-key.php`
+3. Copy key yang muncul ke `.env`
+4. **HAPUS** file `generate-key.php`
+
+#### Step 7: Setup Database (cPanel)
+
+1. Di cPanel, buka **MySQL Databases**
+2. **Create New Database:** `cpaneluser_baitulj`
+3. **Create New User:** `cpaneluser_bjapp` dengan password
+4. **Add User to Database** dengan ALL PRIVILEGES
+5. Update `.env` dengan credential database
+
+#### Step 8: Jalankan Migration (via Web)
+
+Buat file sementara untuk migration:
+
+1. Buat file `/home/username/public_html/run-migrate.php`:
+
+```php
+<?php
+require __DIR__.'/../laravel/vendor/autoload.php';
+$app = require_once __DIR__.'/../laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+// Migrate
+echo "<h3>Running Migrations...</h3>";
+$kernel->call('migrate', ['--force' => true, '--seed' => true]);
+echo "<pre>";
+echo $kernel->output();
+echo "</pre>";
+echo "<h3>Done! Hapus file ini segera.</h3>";
+```
+
+2. Akses via browser: `https://yourdomain.com/run-migrate.php`
+3. Lihat output migration
+4. **HAPUS** file `run-migrate.php` setelah selesai
+
+#### Step 9: Set Permissions (cPanel)
+
+1. Di File Manager, navigate ke folder Laravel
+2. Klik kanan folder `storage` → **Change Permissions**
+3. Set ke `775` atau centang semua Write permissions
+4. Lakukan hal sama untuk `bootstrap/cache`
+
+#### Step 10: Storage Symlink (via File Manager)
+
+**Catatan:** Tidak semua shared hosting support symlink via File Manager.
+
+Alternatif - buat file untuk symlink:
+
+```php
+<?php
+// create-symlink.php (hapus setelah digunakan!)
+require __DIR__.'/../laravel/vendor/autoload.php';
+$app = require_once __DIR__.'/../laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->call('storage:link');
+echo $kernel->output();
+echo "Symlink created! Hapus file ini.";
+```
+
+---
+
+### 15.4 Troubleshooting Deployment
+
+| Problem | Solution |
+|---------|----------|
+| 500 Internal Server Error | Cek `storage/logs/laravel.log`, fix permissions |
+| Page not found | Pastikan `.htaccess` ter-upload, mod_rewrite enabled |
+| CSS/JS tidak load | Pastikan `public/build/` ter-upload lengkap |
+| Session tidak jalan | Set `SESSION_DRIVER=file` atau `database` |
+| Database error | Cek credential di `.env`, pastikan user punya privileges |
+| Storage link error | Jalankan `php artisan storage:link` atau buat manual |
+
+### 15.5 Security Checklist Production
+
+- [ ] `APP_DEBUG=false`
+- [ ] `APP_ENV=production`
+- [ ] Hapus semua file temporary (generate-key.php, run-migrate.php)
+- [ ] `.env` tidak accessible dari web
+- [ ] `storage/` tidak accessible dari web
+- [ ] HTTPS enabled
+- [ ] Strong database password
+- [ ] Update APP_KEY jika bocor
 
 ---
 
