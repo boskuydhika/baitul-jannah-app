@@ -8,7 +8,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.0.0/).
 
 ## [Unreleased]
 
-### Added
+### Added - Student Enhancements (2025-12-27)
+- **Custom DatePicker Component** - YYYY-MM-DD format dengan auto-dash input
+- **Expanded Parent Data** - Data Ayah & Ibu terpisah (nama, pekerjaan, HP, WA)
+- **Nickname Field** - Nama panggilan yang bisa dicari
+- **WhatsApp Links** - Tombol WA untuk masing-masing orangtua
+- **Indonesian Locale** - Date display dalam format Indonesia
+- **Age Display** - Perhitungan usia real-time di form
+
+### Added - Buku Kas Module (2025-12-27)
+- **Transaction CRUD** - Create, Read, Update, Delete transaksi
+- **Category System** - Kategori pemasukan & pengeluaran
+- **Draft Status** - Transaksi draft bisa diedit
+- **Filter & Search** - Filter by tanggal, kategori, status
+- **Running Balance** - Saldo berjalan per transaksi
+- **Backdate Toggle** - Input tanggal transaksi lampau
+
+### Added - Dark Mode & UI (Previous)
 - **`useIsDark` Hook** - Custom hook untuk dark mode tanpa flash putih
 - **Theme Dropdown** - Pilihan Mode Terang, Mode Gelap, Ikuti Sistem
 - **Premium Backgrounds** - Animated blobs (light), gradient orbs (dark)
